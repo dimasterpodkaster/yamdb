@@ -1,2 +1,2 @@
-# yamdb
-YaMDb — база отзывов о фильмах, книгах и музыке.
+# api_yamdb
+api_yamdb
