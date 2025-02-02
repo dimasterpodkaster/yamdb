@@ -22,6 +22,9 @@ services:
   web:
     build: .
     container_name: django_web
+    environment:
+      - EMAIL_HOST_USER=${EMAIL_HOST_USER}
+      - EMAIL_HOST_PASSWORD=${EMAIL_HOST_PASSWORD}
     restart: always
     volumes:
       - .:/code
@@ -33,7 +36,7 @@ services:
       - db
     env_file:
       - .env
-    networks: 
+    networks:
       - django_network
 
   # Nginx

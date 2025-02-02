@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, Category, Genre, Title, Review, Comment
+from collections import OrderedDict
 
 
 class LoginSerializer(serializers.Serializer):
@@ -13,8 +14,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
         fields = ('username', 'email', 'role', 'password', 'confirmation_code')
 
     def to_representation(self, instance):
-        data = {'email': instance.email}
-        return data
+        if isinstance(instance, dict) or isinstance(instance, OrderedDict):
+            return instance  # Возвращаем, если это словарь
+        return {'email': instance.email}
 
 
 class RoleUserSerializer(serializers.ModelSerializer):

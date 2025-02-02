@@ -1,4 +1,5 @@
 from warnings import filters
+import logging
 
 from django.shortcuts import render, get_object_or_404
 from rest_framework.pagination import PageNumberPagination
@@ -16,6 +17,9 @@ from django.contrib.auth.hashers import PBKDF2PasswordHasher
 import random
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from django.template.defaultfilters import slugify
+
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -38,19 +42,21 @@ class RegistrationAPIView(APIView):
         verification_code = random.randint(100000, 999999)
         data['confirmation_code'] = verification_code
         data._mutable = _mutable
-
+        logger.info(f"Attempting to send email to {email} with code {verification_code}")
         # Паттерн создания сериализатора, валидации и сохранения
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            if hasattr(data, 'email'):
+
+            if 'email' in data:
                 subject = 'welcome to YaMDB world'
                 message = 'Hi ' + data.get('email') + (', thank you for registering in YaMDB. '
                                                        'There is your verification code: ') + str(verification_code)
                 email_from = settings.EMAIL_HOST_USER
                 recipient_list = [data.get('email'), ]
                 send_mail(subject, message, email_from, recipient_list)
-            # else:
-            #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                logger.info(f"Email successfully sent to {email}")
+            else:
+                return Response(serializer.data, status=status.HTTP_404_NOT_FOUND)
 
             serializer.save()
 
@@ -370,6 +376,7 @@ class TitleViewSet(viewsets.ModelViewSet):
     queryset = Title.objects.all()
     serializer_class = TitleSerializer
     permission_classes = [IsSuperUserOrAdmin | ReadOnly]
+
     # filterset_class = TitleFilter
 
     def check_exists(self):
@@ -426,10 +433,9 @@ class TitleViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(category=self.cat_obj, genre=self.gen_obj)
 
-
 # class GenreListCreate(generics.ListCreateAPIView):
 #     serializer_class = GenreSerializer
 #     queryset = Genre.objects.all()
 #     permission_classes = [IsAuthenticated | ReadOnly]
-    # filter_backends = [filters.SearchFilter]
-    # search_fields = ['=name']
+# filter_backends = [filters.SearchFilter]
+# search_fields = ['=name']
