@@ -7,8 +7,14 @@ from rest_framework.response import Response
 from rest_framework import viewsets, status, permissions, generics
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from api.serializers import (RegistrationSerializer, LoginSerializer, RoleUserSerializer, CategorySerializer,
-                             GenreSerializer, TitleSerializer)
+from api.serializers import (
+    RegistrationSerializer,
+    LoginSerializer,
+    RoleUserSerializer,
+    CategorySerializer,
+    GenreSerializer,
+    TitleSerializer,
+)
 from api.permissions import IsSuperUserOrAdmin, IsAdminOrReadOnly, ReadOnly
 from api.models import User, Category, Genre, Title
 from django.conf import settings
@@ -27,6 +33,7 @@ class RegistrationAPIView(APIView):
     """
     Разрешить всем пользователям (аутентифицированным и нет) доступ к данному эндпоинту.
     """
+
     permission_classes = (AllowAny,)
     serializer_class = RegistrationSerializer
 
@@ -35,28 +42,41 @@ class RegistrationAPIView(APIView):
         data = request.data
         _mutable = data._mutable
         data._mutable = True
-        email = data.get('email')
-        data['username'] = email
-        data['role'] = User.AN
-        data['password'] = hasher.encode('12345', hasher.salt())
+        email = data.get("email")
+        data["username"] = email
+        data["role"] = User.AN
+        data["password"] = hasher.encode("12345", hasher.salt())
         verification_code = random.randint(100000, 999999)
-        data['confirmation_code'] = verification_code
+        data["confirmation_code"] = verification_code
         data._mutable = _mutable
-        logger.info(f"Attempting to send email to {email} with code {verification_code}")
+        logger.info(
+            f"Attempting to send email to {email} with code {verification_code}"
+        )
         # Паттерн создания сериализатора, валидации и сохранения
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
 
-            if 'email' in data:
-                subject = 'welcome to YaMDB world'
-                message = 'Hi ' + data.get('email') + (', thank you for registering in YaMDB. '
-                                                       'There is your verification code: ') + str(verification_code)
+            if "email" in data:
+                subject = "welcome to YaMDB world"
+                message = (
+                    "Hi "
+                    + data.get("email")
+                    + (
+                        ", thank you for registering in YaMDB. "
+                        "There is your verification code: "
+                    )
+                    + str(verification_code)
+                )
                 email_from = settings.EMAIL_HOST_USER
-                recipient_list = [data.get('email'), ]
+                recipient_list = [
+                    data.get("email"),
+                ]
                 send_mail(subject, message, email_from, recipient_list)
                 logger.info(f"Email successfully sent to {email}")
             else:
-                return Response(serializer.data, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    serializer.data, status=status.HTTP_404_NOT_FOUND
+                )
 
             serializer.save()
 
@@ -73,15 +93,22 @@ class LoginAPIView(APIView):
         serializer = self.serializer_class(data=request.data)
 
         if serializer.is_valid():
-            if data['email'] and data['confirmation_code']:
-                current_user = get_object_or_404(User, email=data['email'])
-                if current_user.confirmation_code == int(data['confirmation_code']):
+            if data["email"] and data["confirmation_code"]:
+                current_user = get_object_or_404(User, email=data["email"])
+                if current_user.confirmation_code == int(
+                    data["confirmation_code"]
+                ):
                     current_user.role = User.LG
-                    current_user.save(update_fields=['role'])
+                    current_user.save(update_fields=["role"])
                     token = AccessToken.for_user(current_user)
                     refresh_token = RefreshToken.for_user(current_user)
-                    return Response({'refresh_token': str(refresh_token), 'token': str(token)},
-                                    status=status.HTTP_200_OK)
+                    return Response(
+                        {
+                            "refresh_token": str(refresh_token),
+                            "token": str(token),
+                        },
+                        status=status.HTTP_200_OK,
+                    )
                 else:
                     return Response(status=status.HTTP_403_FORBIDDEN)
 
@@ -109,19 +136,28 @@ class UserViewSet(viewsets.ModelViewSet):
         _mutable = data._mutable
         data._mutable = True
         verification_code = random.randint(100000, 999999)
-        data['confirmation_code'] = verification_code
-        if 'role' not in data:
-            data['role'] = User.LG
+        data["confirmation_code"] = verification_code
+        if "role" not in data:
+            data["role"] = User.LG
         data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
         print(data)
         if serializer.is_valid():
-            if hasattr(data, 'email'):
-                subject = 'welcome to YaMDB world'
-                message = 'Hi ' + data.get('email') + (', thank you for registering in YaMDB. '
-                                                       'There is your verification code: ') + str(verification_code)
+            if hasattr(data, "email"):
+                subject = "welcome to YaMDB world"
+                message = (
+                    "Hi "
+                    + data.get("email")
+                    + (
+                        ", thank you for registering in YaMDB. "
+                        "There is your verification code: "
+                    )
+                    + str(verification_code)
+                )
                 email_from = settings.EMAIL_HOST_USER
-                recipient_list = [data.get('email'), ]
+                recipient_list = [
+                    data.get("email"),
+                ]
                 send_mail(subject, message, email_from, recipient_list)
             # else:
             #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -172,7 +208,7 @@ class PersonalViewSet(viewsets.ModelViewSet):
         data = request.data
         _mutable = data._mutable
         data._mutable = True
-        data['role'] = user.role
+        data["role"] = user.role
         data._mutable = _mutable
         serializer = RoleUserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
@@ -189,13 +225,13 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Category.objects.all()
-        search = self.request.query_params.get('search', None)
+        search = self.request.query_params.get("search", None)
         if search is not None:
             queryset = queryset.filter(name=search)
         return queryset
 
     def list(self, request):
-        categories = self.get_queryset().all().order_by('name')
+        categories = self.get_queryset().all().order_by("name")
         page = self.paginate_queryset(categories)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -210,8 +246,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def create(self, request):
         if not request.user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if hasattr(request.user, 'role'):
-            if not (request.user.is_superuser or request.user.role == 'admin'):
+        if hasattr(request.user, "role"):
+            if not (request.user.is_superuser or request.user.role == "admin"):
                 return Response(status=status.HTTP_403_FORBIDDEN)
         else:
             if not request.user.is_superuser:
@@ -219,8 +255,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
         data = request.data
         _mutable = data._mutable
         data._mutable = True
-        if 'slug' not in data:
-            data['slug'] = slugify(data.get('name'))
+        if "slug" not in data:
+            data["slug"] = slugify(data.get("name"))
         data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
         # print(data)
@@ -236,8 +272,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     def destroy(self, request, pk=None):
         if not request.user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if hasattr(request.user, 'role'):
-            if not (request.user.is_superuser or request.user.role == 'admin'):
+        if hasattr(request.user, "role"):
+            if not (request.user.is_superuser or request.user.role == "admin"):
                 return Response(status=status.HTTP_403_FORBIDDEN)
         else:
             if not request.user.is_superuser:
@@ -256,13 +292,13 @@ class GenreViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Genre.objects.all()
-        search = self.request.query_params.get('search', None)
+        search = self.request.query_params.get("search", None)
         if search is not None:
             queryset = queryset.filter(name=search)
         return queryset
 
     def list(self, request):
-        genres = self.get_queryset().all().order_by('name')
+        genres = self.get_queryset().all().order_by("name")
         page = self.paginate_queryset(genres)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
@@ -277,8 +313,8 @@ class GenreViewSet(viewsets.ModelViewSet):
     def create(self, request):
         if not request.user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if hasattr(request.user, 'role'):
-            if not (request.user.is_superuser or request.user.role == 'admin'):
+        if hasattr(request.user, "role"):
+            if not (request.user.is_superuser or request.user.role == "admin"):
                 return Response(status=status.HTTP_403_FORBIDDEN)
         else:
             if not request.user.is_superuser:
@@ -286,8 +322,8 @@ class GenreViewSet(viewsets.ModelViewSet):
         data = request.data
         _mutable = data._mutable
         data._mutable = True
-        if 'slug' not in data:
-            data['slug'] = slugify(data.get('name'))
+        if "slug" not in data:
+            data["slug"] = slugify(data.get("name"))
         data._mutable = _mutable
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -302,8 +338,8 @@ class GenreViewSet(viewsets.ModelViewSet):
     def destroy(self, request, pk=None):
         if not request.user.is_authenticated:
             return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if hasattr(request.user, 'role'):
-            if not (request.user.is_superuser or request.user.role == 'admin'):
+        if hasattr(request.user, "role"):
+            if not (request.user.is_superuser or request.user.role == "admin"):
                 return Response(status=status.HTTP_403_FORBIDDEN)
         else:
             if not request.user.is_superuser:
@@ -380,11 +416,11 @@ class TitleViewSet(viewsets.ModelViewSet):
     # filterset_class = TitleFilter
 
     def check_exists(self):
-        category = self.request.data.get('category', None)
-        if 'multipart/form-data' in self.request.content_type:
-            genre = self.request.data.getlist('genre', None)
+        category = self.request.data.get("category", None)
+        if "multipart/form-data" in self.request.content_type:
+            genre = self.request.data.getlist("genre", None)
         else:
-            genre = self.request.data.get('genre', None)
+            genre = self.request.data.get("genre", None)
 
         self.cat_obj = None
         self.gen_obj = []
@@ -413,9 +449,13 @@ class TitleViewSet(viewsets.ModelViewSet):
         self.cat_obj, self.gen_obj, exists_status = self.check_exists()
 
         if exists_status is False:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return super(viewsets.ModelViewSet, self).create(self.request, *self.args, **self.kwargs)
+        return super(viewsets.ModelViewSet, self).create(
+            self.request, *self.args, **self.kwargs
+        )
 
     def perform_create(self, serializer):
         serializer.save(category=self.cat_obj, genre=self.gen_obj)
@@ -432,6 +472,7 @@ class TitleViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(category=self.cat_obj, genre=self.gen_obj)
+
 
 # class GenreListCreate(generics.ListCreateAPIView):
 #     serializer_class = GenreSerializer
